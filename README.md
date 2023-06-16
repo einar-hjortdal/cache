@@ -14,7 +14,7 @@ Install with `v install Coachonko.cache`
 import coachonko.cache
 
 // Create a new RedisStore
-redis_store := new_redis_store(RedisStoreOptions{})
+redis_store := cache.new_redis_store(RedisStoreOptions{})
 
 // Use the RedisStore to create or load cache
 cat_name := 'Evelina Viktoria Andersson-Holmström'

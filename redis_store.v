@@ -1,7 +1,6 @@
 module cache
 
-import coachonko.redis
-// import patrickpissurno.redis
+import patrickpissurno.redis
 
 // RedisStoreOptions is the struct to provide to new_redis_store.
 pub struct RedisStoreOptions {
