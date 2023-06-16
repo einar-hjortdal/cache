@@ -19,5 +19,5 @@ redis_store := new_redis_store(RedisStoreOptions{})
 // Use the RedisStore to create or load cache
 cat_name := 'Evelina Viktoria Andersson-Holmström'
 redis_store.set('cat_name', cat_name)!
-redis_store.get('cat_name)! // Evelina Viktoria Andersson-Holmström
+cached_cat_name := redis_store.get('cat_name)! // Evelina Viktoria Andersson-Holmström
 ```
