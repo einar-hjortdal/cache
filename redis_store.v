@@ -1,80 +1,70 @@
 module cache
 
-import patrickpissurno.redis
+import time
+import coachonko.redis
 
 // RedisStoreOptions is the struct to provide to new_redis_store.
 pub struct RedisStoreOptions {
-	// existing_pool when not provided creates a new RedisPool for sessions storage.
-	// When set to true, the provided pre-existing RedisPool will be used instead.
-	existing_pool bool
-	// pool is the pre-existing RedisPool that will be used when existing_pool is set to true.
-	pool redis.RedisPool
-	// pool_opts are the options used to create a new RedisPool.
-	// https://github.com/patrickpissurno/vredis/
-	pool_opts redis.PoolOpts
 	// key_prefix when not provided defaults to 'cache_'
 	key_prefix string
 	// expire is the length of time cache will persist in Redis. Defaults to 30 minutes.
-	expire int
+	expire time.Duration
 }
 
 pub struct RedisStore {
-	key_prefix string
-	expire     int
+	RedisStoreOptions
 mut:
-	pool redis.RedisPool
+	client redis.Client
 }
 
 // new_redis_store creates a new RedisStore with the given RedisStoreOptions.
-pub fn new_redis_store(rso RedisStoreOptions) !RedisStore {
-	mut pool := get_pool(rso)!
-	mut expire := 60 * 30
-	if rso.expire > 0 {
-		expire = rso.expire
+pub fn new_redis_store(rso RedisStoreOptions, mut ro redis.Options) !&RedisStore {
+	mut new_expire := rso.expire
+	if new_expire <= 0 {
+		new_expire = 30 * time.minute
 	}
-	return RedisStore{
-		pool: pool
-		expire: expire
-		key_prefix: 'cache_'
+	mut new_key_prefix := rso.key_prefix
+	if new_key_prefix == '' {
+		new_key_prefix = 'cache_'
 	}
-}
-
-fn get_pool(rso RedisStoreOptions) !redis.RedisPool {
-	if rso.existing_pool {
-		return rso.pool
-	} else {
-		return redis.new_pool(rso.pool_opts)!
+	return &RedisStore{
+		RedisStoreOptions: RedisStoreOptions{
+			expire: new_expire
+			key_prefix: new_key_prefix
+		}
+		client: redis.new_client(mut ro)
 	}
 }
 
-// set stores a new item in the cache.
+/*
+*
+*
+* Store interface
+*
+*
+*/
+
 pub fn (mut store RedisStore) set(key string, value string) ! {
-	mut conn := store.pool.borrow()!
-	conn.setex(store.key_prefix + key, store.expire, value)
-	store.pool.release(conn)!
+	store.client.set('${store.key_prefix}${key}', value, store.expire)!
 }
 
 // get returns the cached data with the given key if it exists.
 pub fn (mut store RedisStore) get(key string) !string {
-	mut conn := store.pool.borrow()!
-	value := conn.get(store.key_prefix + key) or {
-		store.pool.release(conn)!
-		return err
+	get_res := store.client.get('${store.key_prefix}${key}')!
+	if get_res.err() == 'nil' {
+		return error('nil')
 	}
-	store.pool.release(conn)!
-	return value
+	return get_res.val()
 }
 
 // del deletes an item from redis.
 pub fn (mut store RedisStore) del(key string) ! {
-	mut conn := store.pool.borrow()!
-	conn.del(store.key_prefix + key)!
-	store.pool.release(conn)!
+	store.client.del('${store.key_prefix}${key}')!
 }
 
 // clear deletes all the cached data
 pub fn (mut store RedisStore) clear(key_prefix string) ! {
-	// TODO requires implementing scan in vredis, scan should return an array of keys
-	// first scan for keys with the cache.key_prefix, then iterate over the result and del.
+	// TODO requires implementing scan in coachonko.redis, scan should return an array of keys.
+	// First scan for keys with the cache.key_prefix, then iterate over the result with del.
 	return error('Method not implemented yet.')
 }
